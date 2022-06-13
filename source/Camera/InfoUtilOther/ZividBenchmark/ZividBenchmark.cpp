@@ -222,7 +222,11 @@ namespace
     void printCapture3DResults(const std::vector<Duration> &durations)
     {
         printResults(
-            { "  3D image acquisition time:", "  Point cloud processing time:", "  Total 3D capture time:" },
+            { "  camera.capture() time:",
+              "  frame.pointCloud() time:",
+              "  remaining processing time:",
+              "  copyData time:",
+              "  Total 3D capture time:" },
             durations);
     }
     void printCapture2D3DResults(const std::vector<Duration> &durations)
@@ -625,6 +629,7 @@ namespace
             const auto frame2D = camera.capture(settings2D);
             const auto afterCapture2D = HighResClock::now();
             const auto frame3D = camera.capture(settings3D);
+            Zivid::Detail::waitUntilProcessingIsComplete(frame3D.pointCloud());
             const auto afterCapture3D = HighResClock::now();
             capture2DDurations.push_back(afterCapture2D - beforeCapture2D);
             capture3DDurations.push_back(afterCapture3D - afterCapture2D);
@@ -639,6 +644,7 @@ namespace
                       << "\t3D time: " << formatDuration(capture3DDurations[i])
                       << "\tTotal time: " << formatDuration(captureTotalDurations[i]) << std::endl;
         }
+        std::cout << "Note: we don't benchmark copy time in this test" << std::endl;
     }
     void benchmarkCapture3DandDummy3D(
         Zivid::Camera &camera,
@@ -735,25 +741,36 @@ namespace
             const auto data = camera.capture(settings).pointCloud().copyData<Zivid::PointXYZColorRGBA>();
         }
         std::vector<Duration> captureDurations;
+        std::vector<Duration> pointCloudDurations;
         std::vector<Duration> processDurations;
+        std::vector<Duration> copyDurations;
         std::vector<Duration> totalDurations;
         std::vector<Duration> allDurations;
         for(size_t i = 0; i < numFrames; i++)
         {
             const auto beforeCapture = HighResClock::now();
             const auto frame = camera.capture(settings);
-            const auto afterCapture = HighResClock::now();
+            const auto afterCapture = HighResClock::now(); 
             const auto pointCloud = frame.pointCloud();
+            const auto afterPointCloud = HighResClock::now(); 
+            Zivid::Detail::waitUntilProcessingIsComplete(pointCloud);
+            const auto afterProcess = HighResClock::now();                       
             const auto data = pointCloud.copyData<Zivid::PointXYZColorRGBA>();
-            const auto afterProcess = HighResClock::now();
+            const auto afterCopy = HighResClock::now();
             captureDurations.push_back(afterCapture - beforeCapture);
-            processDurations.push_back(afterProcess - afterCapture);
-            totalDurations.push_back(afterProcess - beforeCapture);
+            pointCloudDurations.push_back(afterPointCloud - afterCapture);
+            processDurations.push_back(afterProcess - afterPointCloud);
+            copyDurations.push_back(afterCopy - afterProcess);
+            totalDurations.push_back(afterCopy - beforeCapture);
         }
         allDurations.push_back(computeMedianDuration(captureDurations));
         allDurations.push_back(computeAverageDuration(captureDurations));
+        allDurations.push_back(computeMedianDuration(pointCloudDurations));
+        allDurations.push_back(computeAverageDuration(pointCloudDurations));
         allDurations.push_back(computeMedianDuration(processDurations));
         allDurations.push_back(computeAverageDuration(processDurations));
+        allDurations.push_back(computeMedianDuration(copyDurations));
+        allDurations.push_back(computeAverageDuration(copyDurations));
         allDurations.push_back(computeMedianDuration(totalDurations));
         allDurations.push_back(computeAverageDuration(totalDurations));
         printCapture3DResults(allDurations);
@@ -892,6 +909,8 @@ int main()
         const std::vector<std::chrono::microseconds> oneExposureTime{ exposureTime10 };
         const std::vector<std::chrono::microseconds> twoExposureTimes{ exposureTime6, exposureTime6 };
 
+        const std::vector<std::chrono::microseconds> oneExposureTime6{ exposureTime6 };
+
         const double aperture2D = 5.0;
         const std::vector<double> oneAperture{ 5.0 };
         const std::vector<double> oneAperture2D{ aperture2D };
@@ -904,6 +923,11 @@ int main()
         std::vector<std::chrono::microseconds> exposureTimes[2] = { oneExposureTime2D, oneExposureTime };
 
         camera.connect();
+
+        // Single capture 3D fastest
+
+        printHeader("TEST 2: Single 3D capture (Phase, Reflection)");
+        benchmarkCapture3D(camera, makeSettingsPhase(oneAperture, oneExposureTime6, oneGain, true), numFrames3D);
 
 
         // 2D
