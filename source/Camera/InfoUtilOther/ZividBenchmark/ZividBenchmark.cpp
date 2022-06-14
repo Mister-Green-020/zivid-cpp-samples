@@ -416,8 +416,8 @@ namespace
         }
         Zivid::Settings settings{
             Zivid::Settings::Experimental::Engine::phase,
-            Zivid::Settings::Processing::Filters::Experimental::ContrastDistortion::Correction::Enabled::yes,
-            Zivid::Settings::Processing::Filters::Experimental::ContrastDistortion::Correction::Strength{ 0.4 },
+            Zivid::Settings::Processing::Filters::Experimental::ContrastDistortion::Correction::Enabled::no,
+            //Zivid::Settings::Processing::Filters::Experimental::ContrastDistortion::Correction::Strength{ 0.4 },
             Zivid::Settings::Processing::Filters::Smoothing::Gaussian::Enabled{ false },
             Zivid::Settings::Processing::Filters::Noise::Removal::Enabled{ true },
             Zivid::Settings::Processing::Filters::Outlier::Removal::Enabled{ true },
@@ -899,28 +899,25 @@ int main()
     {
         Zivid::Application zivid;
         auto camera = getFirstCamera(zivid);
-        const size_t numConnects = 10;
         const size_t numFrames3D = 10;
         const size_t numFrames2D = 10;
-        const size_t numFramesSave = 10;
         const std::chrono::microseconds exposureTime10 = std::chrono::microseconds{ 10000 };
         const std::chrono::microseconds exposureTime6 = std::chrono::microseconds{ 6500 };
+
         const std::vector<std::chrono::microseconds> oneExposureTime2D{ exposureTime10 };
-        const std::vector<std::chrono::microseconds> oneExposureTime{ exposureTime10 };
-        const std::vector<std::chrono::microseconds> twoExposureTimes{ exposureTime6, exposureTime6 };
 
         const std::vector<std::chrono::microseconds> oneExposureTime6{ exposureTime6 };
+        const std::vector<std::chrono::microseconds> oneExposureTime10{ exposureTime10 };
 
-        const double aperture2D = 5.0;
+        const std::vector<std::chrono::microseconds> twoExposureTimes6{ exposureTime6, exposureTime6 };
+        const std::vector<std::chrono::microseconds> twoExposureTimes10{ exposureTime10, exposureTime10 };
+        
+        const std::vector<double> oneAperture2D{ 5.0 };
         const std::vector<double> oneAperture{ 5.0 };
-        const std::vector<double> oneAperture2D{ aperture2D };
         const std::vector<double> twoApertures{ 6.73, 2.83 };
 
         const std::vector<double> oneGain{ 1.0 };
         const std::vector<double> twoGains{ 1.0, 4.0 };
-
-        std::vector<double> apertures[2] = { oneAperture2D, oneAperture };
-        std::vector<std::chrono::microseconds> exposureTimes[2] = { oneExposureTime2D, oneExposureTime };
 
         camera.connect();
 
@@ -939,45 +936,45 @@ int main()
         // Single capture 3D
 
         printHeader("TEST 2: Single 3D capture (Phase, Reflection)");
-        benchmarkCapture3D(camera, makeSettingsPhase(oneAperture, oneExposureTime, oneGain, true), numFrames3D);
+        benchmarkCapture3D(camera, makeSettingsPhase(oneAperture, oneExposureTime10, oneGain, true), numFrames3D);
 
         printHeader("TEST 3: Single 3D capture (Phase, No Reflection)");
-        benchmarkCapture3D(camera, makeSettingsPhase(oneAperture, oneExposureTime, oneGain, false), numFrames3D);
+        benchmarkCapture3D(camera, makeSettingsPhase(oneAperture, oneExposureTime10, oneGain, false), numFrames3D);
 
         printHeader("TEST 4: Single 3D capture (Stripe, Reflection required)");
-        benchmarkCapture3D(camera, makeSettingsStripe(oneAperture, oneExposureTime, oneGain, true), numFrames3D);
+        benchmarkCapture3D(camera, makeSettingsStripe(oneAperture, oneExposureTime10, oneGain, true), numFrames3D);
 
 
         // 2D + Single Capture 3D
 
         printHeader("TEST 5: 2D and 3D Single capture (Phase, Reflection)");
         benchmarkCapture2DAnd3DWarmpUp3D(
-            camera, makeSettings2D(), makeSettingsPhase(oneAperture, oneExposureTime, oneGain, true), numFrames3D);
+            camera, makeSettings2D(), makeSettingsPhase(oneAperture, oneExposureTime10, oneGain, true), numFrames3D);
 
         printHeader("TEST 6: 2D and 3D Single capture (Phase, No Reflection)");
         benchmarkCapture2DAnd3DWarmpUp3D(
-            camera, makeSettings2D(), makeSettingsPhase(oneAperture, oneExposureTime, oneGain, false), numFrames3D);
+            camera, makeSettings2D(), makeSettingsPhase(oneAperture, oneExposureTime10, oneGain, false), numFrames3D);
 
         printHeader("TEST 7: 2D and 3D Single capture (Stripe, Reflection)");
         benchmarkCapture2DAnd3DWarmpUp3D(
-            camera, makeSettings2D(), makeSettingsStripe(oneAperture, oneExposureTime, oneGain, true), numFrames3D);
+            camera, makeSettings2D(), makeSettingsStripe(oneAperture, oneExposureTime10, oneGain, true), numFrames3D);
 
 
         // 2D + 2-HDR 3D
 
         printHeader("TEST 8: 2D and 2-HDR 3D Capture (Phase, Reflection)");
         benchmarkCapture2DAnd3DWarmpUp3D(
-            camera, makeSettings2D(), makeSettingsPhase(twoApertures, twoExposureTimes, twoGains, true), numFrames3D);
+            camera, makeSettings2D(), makeSettingsPhase(twoApertures, twoExposureTimes10, twoGains, true), numFrames3D);
 
         printHeader("TEST 9: 2D and 2-HDR 3D Capture (Phase, No Reflection)");
         benchmarkCapture2DAnd3DWarmpUp3D(
-            camera, makeSettings2D(), makeSettingsPhase(twoApertures, twoExposureTimes, twoGains, false), numFrames3D);
+            camera, makeSettings2D(), makeSettingsPhase(twoApertures, twoExposureTimes10, twoGains, false), numFrames3D);
 
 
         // 2-HDR 3D (Factory Automation)
 
         printHeader("TEST 10: 2-HDR 3D Capture (Stripe)");
-        benchmarkCapture3D(camera, makeSettingsStripe(twoApertures, twoExposureTimes, twoGains, true), numFrames3D);
+        benchmarkCapture3D(camera, makeSettingsStripe(twoApertures, twoExposureTimes10, twoGains, true), numFrames3D);
 
     }
     catch(const std::exception &e)
