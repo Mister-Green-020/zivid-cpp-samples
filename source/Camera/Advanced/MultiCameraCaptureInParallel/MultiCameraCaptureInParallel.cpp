@@ -45,14 +45,65 @@ namespace
         }
     };
 
+    struct Measured2DTimes
+    {
+        Duration captureDuration;
+        Duration imageRGBADuration;
+        Duration totalDuration;
+
+        Measured2DTimes &operator+=(const Measured2DTimes &t)
+        {
+            captureDuration += t.captureDuration;
+            imageRGBADuration += t.imageRGBADuration;
+            totalDuration += t.totalDuration;
+
+
+            return *this;
+        }
+        Measured2DTimes &operator/=(float f)
+        {
+            captureDuration /= f;
+            imageRGBADuration /= f;
+            totalDuration /= f;
+
+            return *this;
+        }
+    };
+
+    Measured2DTimes capture2DInThread(Zivid::Camera &camera, Zivid::Settings2D &settings /*, std::mutex &m*/)
+    {
+        const auto beforeCapture = HighResClock::now();
+
+        const auto frame2D = camera.capture(settings);
+
+        const auto afterCapture = HighResClock::now();
+
+        const auto image = frame2D.imageRGBA();
+
+        const auto afterImageRGBA = HighResClock::now();
+
+        Measured2DTimes times2D;
+
+        times2D.captureDuration = afterCapture - beforeCapture;
+        times2D.imageRGBADuration = afterImageRGBA - afterCapture;
+        times2D.totalDuration = afterImageRGBA - beforeCapture;
+
+        return times2D;
+    }
+
     MeasuredTimes captureInThread(Zivid::Camera &camera, Zivid::Settings &settings /*, std::mutex &m*/)
     {
         // Capturing frame
+
+        //std::cout << "Capture starts" << std::endl;
+
         const auto beforeCapture = HighResClock::now();
 
         const auto frame = camera.capture(settings);
 
         const auto afterCapture = HighResClock::now();
+
+        //std::cout << "Capture returns" << std::endl;
 
         const auto pointCloud = frame.pointCloud();
 
@@ -113,7 +164,9 @@ int main()
         }
 
         auto settingsFile = "settingsSlow.yml";
+        auto settingsFile2D = "settings2D.yml";
         auto settings = Zivid::Settings(settingsFile);
+        auto settings2D = Zivid::Settings2D(settingsFile2D);
 
         std::cout << "Warmup task" << std::endl;
         for(size_t i = 0; i < 5; i++)
@@ -130,13 +183,30 @@ int main()
         }
 
 
-        const size_t numFrames3D = 10;
+        const size_t numFrames3D = 30;
 
         std::vector<std::vector<MeasuredTimes>> allTimes(numFrames3D, {cameras.size(), MeasuredTimes{}});
+        std::vector<std::vector<Measured2DTimes>> allTimes2D(numFrames3D, { cameras.size(), Measured2DTimes{} });
 
         for(size_t i = 0; i < numFrames3D; i++)
         {
             std::vector<std::future<MeasuredTimes>> times;
+            std::vector<std::future<Measured2DTimes>> times2D;
+           
+            
+            for(auto &camera : cameras)
+            {
+                times2D.emplace_back(
+                    std::async(std::launch::async, capture2DInThread, std::ref(camera), std::ref(settings2D)));
+            }
+
+            for(size_t j = 0; j < cameras.size(); ++j)
+            {
+                const auto camTimes2D = times2D[j].get();
+                allTimes2D[i][j] = camTimes2D;
+            }
+            
+            
 
             for(auto &camera : cameras)
             {
@@ -171,6 +241,26 @@ int main()
         for(auto &avg : averageTimes)
         {
             avg /= numFrames3D;
+        }
+
+        std::vector<Measured2DTimes> averageTimes2D(cameras.size(), Measured2DTimes{});
+        for(size_t i = 0; i < numFrames3D; i++)
+        {
+            for(size_t j = 0; j < cameras.size(); j++)
+            {
+                averageTimes2D[j] += allTimes2D[i][j];
+            }
+        }
+        for(auto &avg2D : averageTimes2D)
+        {
+            avg2D /= numFrames3D;
+        }
+
+        for (size_t j = 0; j < cameras.size(); j++)
+        {
+            std::cout << "Average 2d capture time for camera " << cameras[j].info().serialNumber().value() << ": "
+                      << formatDuration(averageTimes2D[j].captureDuration) << " imge time: " << formatDuration(averageTimes2D[j].imageRGBADuration)
+                      << " total time: " << formatDuration(averageTimes2D[j].totalDuration) << std::endl;
         }
 
         for (size_t j = 0; j < cameras.size(); j++)
