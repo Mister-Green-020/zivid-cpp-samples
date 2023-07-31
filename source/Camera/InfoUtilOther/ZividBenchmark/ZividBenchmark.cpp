@@ -775,14 +775,38 @@ int main(int argc, char **argv)
         const std::vector<double> twoApertures{ 8.0, 4.0 };
         const std::vector<double> threeApertures{ 11.31, 5.66, 2.83 };
 
-        const auto settings = settingsFromYML ? Zivid::Settings(settingsFile)
+        /*const auto settings = settingsFromYML ? Zivid::Settings(settingsFile)
                                               : makeSettings(twoApertures, twoExposureTimes, false, false);
-        const auto settings2D = settings2DFromYML ? Zivid::Settings2D(settings2DFile) : makeSettings2D(exposureTime);
+        const auto settings2D = settings2DFromYML ? Zivid::Settings2D(settings2DFile) : makeSettings2D(exposureTime);*/
 
-        printHeader("TEST: Connect/Disconnect");
-        benchmarkConnect(camera, numConnects);
+        /*printHeader("TEST: Connect/Disconnect");
+        benchmarkConnect(camera, numConnects);*/
         camera.connect();
 
+
+        std::cout << "1_omni_10000.yml" << std::endl;
+        benchmarkCapture3D(camera, Zivid::Settings("1_omni_10000.yml"),
+                           numFrames3D);
+        std::cout << "2_omni_8333.yml" << std::endl;
+        benchmarkCapture3D(camera, Zivid::Settings("2_omni_8333.yml"),
+                           numFrames3D);
+        std::cout << "3_omni_5000.yml" << std::endl;
+        benchmarkCapture3D(camera, Zivid::Settings("3_omni_5000.yml"),
+                           numFrames3D);
+        std::cout << "4_omni_5000_no_cluster.yml" << std::endl;
+        benchmarkCapture3D(camera, Zivid::Settings("4_omni_5000_no_cluster.yml"),
+                           numFrames3D);
+        std::cout << "5_omni_5000_no_cluster_no_hole_filling.yml" << std::endl;
+        benchmarkCapture3D(camera, Zivid::Settings("5_omni_5000_no_cluster_no_hole_filling.yml"),
+                           numFrames3D);
+        std::cout << "6_omni_5000_no_cluster_no_hole_filling_disabled_color.yml" << std::endl;
+        benchmarkCapture3D(camera, Zivid::Settings("6_omni_5000_no_cluster_no_hole_filling_disabled_color.yml"),
+                           numFrames3D);
+        std::cout << "7_omni_1677_no_cluster_no_hole_filling_disabled_color.yml" << std::endl;
+        benchmarkCapture3D(camera, Zivid::Settings("7_omni_1677_no_cluster_no_hole_filling_disabled_color.yml"),
+                           numFrames3D);
+
+        /*
         if(settingsFromYML)
         {
             printHeader("TEST: 3D Capture");
@@ -798,7 +822,8 @@ int main(int argc, char **argv)
             benchmarkCapture3D(camera, makeSettings(twoApertures, twoExposureTimes, false, false), numFrames3D);
             printHeader("TEST: Three Acquisitions (HDR) Capture");
             benchmarkCapture3DAndFilters(camera, threeApertures, threeExposureTimes, numFrames3D);
-        }
+        }*/
+        /*
         printHeader("TEST: 2D Capture");
         benchmarkCapture2D(camera, settings2D, numFrames2D);
 
@@ -810,7 +835,7 @@ int main(int argc, char **argv)
         printHeader("TEST: Copy Data");
         benchmarkCopyData(camera, exposureTime, numCopies);
         printHeader("TEST: Save");
-        benchmarkSave(camera, numFramesSave);
+        benchmarkSave(camera, numFramesSave);*/
     }
     catch(const std::exception &e)
     {
