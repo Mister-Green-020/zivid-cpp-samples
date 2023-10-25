@@ -40,23 +40,20 @@ zividToHalconPointCloud(const Zivid::PointCloud &pointCloud) {
   // used for creating xyz mapping. See more at:
   // https://www.mvtec.com/doc/halcon/13/en/set_object_model_3d_attrib.html
 
-  HalconCpp::HTuple tuplePointsX, tuplePointsY, tuplePointsZ, tupleNormalsX,
-      tupleNormalsY, tupleNormalsZ, tupleColorsR, tupleColorsB, tupleColorsG,
-      tupleRow, tupleCol, tupleXYZMapping;
+  std::vector<float> pointsX(numberOfValidPoints);
+  std::vector<float> pointsY(numberOfValidPoints);
+  std::vector<float> pointsZ(numberOfValidPoints);
+  std::vector<float> normalsX(numberOfValidPoints);
+  std::vector<float> normalsY(numberOfValidPoints);
+  std::vector<float> normalsZ(numberOfValidPoints);
 
-  tuplePointsX[numberOfValidPoints - 1] = (float)0.0;
-  tuplePointsY[numberOfValidPoints - 1] = (float)0.0;
-  tuplePointsZ[numberOfValidPoints - 1] = (float)0.0;
-  tupleNormalsX[numberOfValidPoints - 1] = (float)0.0;
-  tupleNormalsY[numberOfValidPoints - 1] = (float)0.0;
-  tupleNormalsZ[numberOfValidPoints - 1] = (float)0.0;
-  tupleColorsR[numberOfValidPoints - 1] = (Hlong)0;
-  tupleColorsG[numberOfValidPoints - 1] = (Hlong)0;
-  tupleColorsB[numberOfValidPoints - 1] = (Hlong)0;
+  std::vector<int64_t> colorsR(numberOfValidPoints);
+  std::vector<int64_t> colorsG(numberOfValidPoints);
+  std::vector<int64_t> colorsB(numberOfValidPoints);
 
-  tupleXYZMapping[2 * numberOfValidPoints + 2 - 1] = (Hlong)0;
-  tupleXYZMapping[0] = (Hlong)width;
-  tupleXYZMapping[1] = (Hlong)height;
+  std::vector<int64_t> xyzMapping(2 * numberOfValidPoints + 2);
+  xyzMapping[0] = static_cast<int64_t>(width);
+  xyzMapping[1] = static_cast<int64_t>(height);
 
   int validPointIndex = 0;
 
@@ -67,25 +64,36 @@ zividToHalconPointCloud(const Zivid::PointCloud &pointCloud) {
       const auto &color = colorsRGBA(i, j);
 
       if (!isnan(point.x)) {
-        tuplePointsX.DArr()[validPointIndex] = point.x;
-        tuplePointsY.DArr()[validPointIndex] = point.y;
-        tuplePointsZ.DArr()[validPointIndex] = point.z;
-        tupleColorsR.LArr()[validPointIndex] = color.r;
-        tupleColorsG.LArr()[validPointIndex] = color.g;
-        tupleColorsB.LArr()[validPointIndex] = color.b;
-        tupleXYZMapping.LArr()[2 + validPointIndex] = i;
-        tupleXYZMapping.LArr()[2 + numberOfValidPoints + validPointIndex] = j;
+        pointsX[validPointIndex] = point.x;
+        pointsY[validPointIndex] = point.y;
+        pointsZ[validPointIndex] = point.z;
+        colorsR[validPointIndex] = color.r;
+        colorsG[validPointIndex] = color.g;
+        colorsB[validPointIndex] = color.b;
+        xyzMapping[2 + validPointIndex] = i;
+        xyzMapping[2 + numberOfValidPoints + validPointIndex] = j;
 
         if (!isnan(normal.x)) {
-          tupleNormalsX.DArr()[validPointIndex] = normal.x;
-          tupleNormalsY.DArr()[validPointIndex] = normal.y;
-          tupleNormalsZ.DArr()[validPointIndex] = normal.z;
+          normalsX[validPointIndex] = normal.x;
+          normalsY[validPointIndex] = normal.y;
+          normalsZ[validPointIndex] = normal.z;
         }
 
         validPointIndex++;
       }
     }
   }
+
+  HalconCpp::HTuple tuplePointsX(pointsX.data(), pointsX.size());
+  HalconCpp::HTuple tuplePointsY(pointsY.data(), pointsY.size());
+  HalconCpp::HTuple tuplePointsZ(pointsZ.data(), pointsZ.size());
+  HalconCpp::HTuple tupleNormalsX(normalsX.data(), normalsX.size());
+  HalconCpp::HTuple tupleNormalsY(normalsY.data(), normalsY.size());
+  HalconCpp::HTuple tupleNormalsZ(normalsZ.data(), normalsZ.size());
+  HalconCpp::HTuple tupleColorsR(colorsR.data(), colorsR.size());
+  HalconCpp::HTuple tupleColorsG(colorsR.data(), colorsG.size());
+  HalconCpp::HTuple tupleColorsB(colorsR.data(), colorsB.size());
+  HalconCpp::HTuple tupleXYZMapping(xyzMapping.data(), xyzMapping.size());
 
   auto t2 = steady_clock::now();
 
