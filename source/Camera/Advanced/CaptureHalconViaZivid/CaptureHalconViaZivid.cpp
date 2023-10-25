@@ -10,6 +10,11 @@ point cloud and save it using Halcon C++ SDK.
 #include <chrono>
 #include <iostream>
 
+#include <cassert>
+#include <numeric>
+
+#include "omp.h"
+
 using namespace std::chrono;
 
 void savePointCloud(const HalconCpp::HObjectModel3D &model,
@@ -17,6 +22,34 @@ void savePointCloud(const HalconCpp::HObjectModel3D &model,
   model.WriteObjectModel3d(
       HalconCpp::HString{"ply"}, HalconCpp::HString{fileName.c_str()},
       HalconCpp::HString{"invert_normals"}, HalconCpp::HString{"false"});
+}
+
+std::vector<size_t>
+getRowOffsets(const Zivid::Array2D<Zivid::PointXYZ> &pointsXYZ, size_t width,
+              size_t height, size_t &numberOfValidPoints) {
+  std::vector<size_t> numberOfValidPointsInRow(height, 0);
+
+#pragma omp parallel for
+  for (size_t i = 0; i < height; ++i) {
+    size_t validInRow = 0;
+    for (size_t j = 0; j < width; ++j) {
+      if (!pointsXYZ(i, j).isNaN()) {
+        ++validInRow;
+      }
+    }
+    numberOfValidPointsInRow[i] = validInRow;
+  }
+
+  numberOfValidPoints = std::accumulate(numberOfValidPointsInRow.begin(),
+                                        numberOfValidPointsInRow.end(), 0);
+
+  std::vector<size_t> pointOffset(height, 0);
+
+  for (size_t i = 1; i < height; ++i) {
+    pointOffset[i] = pointOffset[i - 1] + numberOfValidPointsInRow[i - 1];
+  }
+
+  return pointOffset;
 }
 
 HalconCpp::HObjectModel3D
@@ -31,9 +64,11 @@ zividToHalconPointCloud(const Zivid::PointCloud &pointCloud) {
 
   auto t1 = steady_clock::now();
 
-  int numberOfValidPoints = std::count_if(
-      pointsXYZ.data(), pointsXYZ.data() + pointsXYZ.size(),
-      [](const Zivid::PointXYZ &point) { return (!point.isNaN()); });
+  size_t numberOfValidPoints;
+
+  std::vector<size_t> pointOffset =
+      getRowOffsets(pointsXYZ, width, height, numberOfValidPoints);
+
 
   // Initializing HTuples which are later filled with data from the Zivid point
   // cloud. tupleXYZMapping is of shape [width, height, rows[], cols[]], and is
@@ -58,9 +93,10 @@ zividToHalconPointCloud(const Zivid::PointCloud &pointCloud) {
   tupleXYZMapping[0] = (Hlong)width;
   tupleXYZMapping[1] = (Hlong)height;
 
-  int validPointIndex = 0;
 
+#pragma omp parallel for
   for (size_t i = 0; i < height; ++i) {
+    int validPointIndex = pointOffset[i];
     for (size_t j = 0; j < width; ++j) {
       const auto &point = pointsXYZ(i, j);
       const auto &normal = normalsXYZ(i, j);
